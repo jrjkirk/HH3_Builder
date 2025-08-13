@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Horus Heresy 3.0 — Army List Builder</title>
+  <style>
+    :root{
+      --bg: #0b0f14; --panel: #151a22; --panel-2: #1b222c; --text: #e8edf2; --muted: #a9b3bf;
+      --accent: #7ac4ff; --accent-2: #9a7cff; --danger: #ff6b6b; --shadow: 0 10px 30px rgba(0,0,0,.4);
+      --radius: 16px;
+      --tag-det-bg:#18314f; --tag-det-bd:#2a4d7b; --tag-det-tx:#d7e6ff;
+      --tag-prime-bg:#133a24; --tag-prime-bd:#1b6b3a; --tag-prime-tx:#c9f5dc;
+      --tag-logi-bg:#4a3a12; --tag-logi-bd:#7a5d1b; --tag-logi-tx:#ffe7b0;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:var(--text); background: radial-gradient(1200px 600px at 80% -10%, #132031, transparent), var(--bg);}    
+    header{position:sticky; top:0; z-index:10; backdrop-filter: blur(8px); background: linear-gradient(180deg, rgba(20,25,33,.9), rgba(20,25,33,.7)); border-bottom:1px solid rgba(255,255,255,.06)}
+    .wrap{max-width:1200px; margin-inline:auto; padding:16px}
+    .title{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+    .title h1{margin:0; font-size: clamp(20px, 3vw, 28px)}
+    .badge{padding:4px 10px; border-radius:999px; background:linear-gradient(90deg, var(--accent), var(--accent-2)); color:#0b0f14; font-weight:700; font-size:12px}
+    .version{border-color: rgba(255,255,255,.2); background:#0e131a}
+
+    .controls{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center}
+    button, .btn{appearance:none; border:none; cursor:pointer; color:var(--text); background:linear-gradient(180deg, #202736, #131923); padding:10px 14px; border-radius:12px; box-shadow: var(--shadow); font-weight:600; transition:.15s transform ease, .15s opacity ease}
+    button:hover{transform: translateY(-1px)}
+    button:active{transform: translateY(0)}
+    .btn-accent{background:linear-gradient(90deg, var(--accent), var(--accent-2)); color:#0b0f14}
+    .btn-danger{background: linear-gradient(180deg, #3a1c22, #1d0c10); color:#ffd7d7}
+    .btn-ghost{background:transparent; border:1px solid rgba(255,255,255,.12)}
+    .btn-sm{padding:6px 10px; border-radius:10px; font-size:12px}
+    .name-input{background:#0e131a; color:var(--text); border:1px solid rgba(255,255,255,.09); border-radius:10px; padding:10px 12px; min-width:220px}
+
+    .grid{display:grid; grid-template-columns: repeat(12, 1fr); gap:16px}
+    .col-12{grid-column: span 12}
+    .col-7{grid-column: span 7}
+    .col-5{grid-column: span 5}
+    .col-6{grid-column: span 6}
+    @media (max-width: 980px){ .col-7,.col-5{grid-column: span 12} }
+
+    .panel{background: linear-gradient(180deg, var(--panel), var(--panel-2)); border:1px solid rgba(255,255,255,.06); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden}
+    .panel h2{margin:0; font-size:18px}
+    .panel-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.06)}
+    .panel-body{padding:12px 16px}
+
+    .detachment{display:flex; flex-direction:column; gap:12px}
+    .detachment-header{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between}
+
+    /* Unit form layout */
+    .unit-form{display:grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap:8px; align-items:center}
+    .unit-form input, .unit-form select, .unit-form textarea{background:#0e131a; color:var(--text); border:1px solid rgba(255,255,255,.09); border-radius:10px; padding:10px 12px; width:100%; max-width:100%; font-size:14px}
+    .unit-form label{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted)}
+
+    .uf-name{grid-column: span 5}
+    .uf-type{grid-column: span 3}
+    .uf-pts{grid-column: span 2}
+    .uf-add{grid-column: 11 / -1; grid-row: 1; justify-self:end}
+    .uf-prime{grid-row:2; grid-column: 1 / span 2}
+    .uf-logi{grid-row:2; grid-column: 3 / span 3}
+    .uf-comment{grid-row:3; grid-column: 1 / -1; resize: vertical; min-height: 44px}
+
+    @media (max-width: 900px){
+      .uf-name{grid-column: 1 / -1}
+      .uf-type,.uf-pts{grid-column: span 6}
+      .uf-add{grid-row:auto; grid-column: 1 / -1; justify-self:stretch}
+      .uf-prime,.uf-logi{grid-row:auto; grid-column: span 6}
+      .uf-comment{grid-row:auto; grid-column: 1 / -1}
+    }
+
+    select[data-u-cat]{white-space:nowrap; text-overflow:ellipsis}
+
+    table{width:100%; border-collapse: collapse}
+    th, td{padding:10px 8px; border-bottom:1px solid rgba(255,255,255,.06); text-align:left; font-size:14px; vertical-align:top}
+    th{color:var(--muted); font-weight:700}
+    td.actions{width:1%; white-space:nowrap}
+
+    /* Editable cell affordance */
+    .cell-editable{cursor:text}
+    .cell-editable:hover{background:rgba(255,255,255,.04); outline:1px dashed rgba(255,255,255,.25); outline-offset:-3px}
+    .cell-placeholder{color: var(--muted); font-style: italic}
+    .checkbox-disabled{opacity:.4; pointer-events:none}
+
+    .totals{display:flex; gap:16px; flex-wrap:wrap; align-items:center}
+    .kpi{background:#0d1218; border:1px solid rgba(255,255,255,.08); padding:12px 14px; border-radius:12px; display:flex; align-items:center; gap:10px}
+    .kpi span{font-size:12px; color:var(--muted)}
+    .kpi b{font-size:18px}
+
+    .footer{opacity:.7; font-size:12px; margin-top:8px}
+    .hint{color:var(--muted); font-size:13px}
+    .pill{padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.12); font-size:12px}
+
+    /* Visualiser on the left */
+    #sidebar{position:sticky; top:96px}
+    #visualiser{line-height:1.25}
+    .cat{padding:10px 12px; border-radius:12px; background:#0d1218; border:1px solid rgba(255,255,255,.08); margin-bottom:12px}
+    .cat h3{margin:0 0 8px 0; font-size:14px; display:flex; justify-content:space-between; align-items:center; gap:8px}
+    .cat small{color:var(--muted)}
+    .unit-row{display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-top:1px dashed rgba(255,255,255,.08); align-items:flex-start}
+    .unit-row:first-child{border-top:none}
+    .unit-row > div:first-child{flex:1; min-width:0; word-break:break-word}
+    .tag{display:inline-block; background:#0e131a; border:1px solid rgba(255,255,255,.12); padding:2px 6px; border-radius:999px; font-size:11px; margin-left:6px; margin-top:2px}
+    .tag-det{background: var(--tag-det-bg); border-color: var(--tag-det-bd); color: var(--tag-det-tx)}
+    .tag-prime{background: var(--tag-prime-bg); border-color: var(--tag-prime-bd); color: var(--tag-prime-tx)}
+    .tag-logi{background: var(--tag-logi-bg); border-color: var(--tag-logi-bd); color: var(--tag-logi-tx)}
+
+    /* Detachment grid layout (right column) */
+    #detachments{ display:grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap:16px; }
+
+    /* Grouping toggle legibility */
+    #group-mode{ color: var(--text); background:#0e131a; border:1px solid rgba(255,255,255,.18); border-radius:10px; }
+
+    /* Split button styles */
+    .split-add{display:inline-flex; position:relative; border-radius:12px; overflow:visible; box-shadow: var(--shadow)}
+    .split-add > button{border-radius:0}
+    .split-add .split-main{border-top-left-radius:12px; border-bottom-left-radius:12px}
+    .split-add .split-caret{padding:10px 12px; border-left:1px solid rgba(0,0,0,.2); border-top-right-radius:12px; border-bottom-right-radius:12px}
+    .menu{position:fixed; background:linear-gradient(180deg, #202736, #131923); border:1px solid rgba(255,255,255,.12); border-radius:12px; min-width:260px; box-shadow: var(--shadow); padding:6px; z-index:9999; display:none}
+    .menu hr{border:0; border-top:1px solid rgba(255,255,255,.1); margin:6px 0}
+    .menu-header{font-size:11px; color:var(--muted); padding:6px 8px}
+    .menu-item{display:block; width:100%; text-align:left; padding:8px 10px; border-radius:8px; background:transparent; color:var(--text); border:1px solid transparent; cursor:pointer}
+    .menu-item:hover{background:rgba(255,255,255,.06)}
+    /* Pseudo-disabled look but keep clickable for popup */
+    .menu-item[aria-disabled="true"]{opacity:.55; cursor:not-allowed}
+
+    /* Print */
+    @media print {
+      body{background:#fff; color:#000}
+      header, .controls, .col-7, .panel .footer { display:none !important; }
+      #sidebar{ position:static; box-shadow:none; border: none; }
+      .wrap{max-width:none}
+      .tag{border-color:#000}
+    }
+    body.print-visualiser-only header,
+    body.print-visualiser-only .controls,
+    body.print-visualiser-only .col-7 { display:none !important; }
+    body.print-visualiser-only #sidebar { position:static; box-shadow:none }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="title">
+        <span class="badge">Horus Heresy 3.0</span>
+        <h1>Army List Builder</h1>
+        <span class="pill version" id="app-version">v1.5.4</span>
+      </div>
+      <div class="controls">
+        <input type="text" id="army-name-input" class="name-input" placeholder="Army name (e.g., XIII Legion Crusade)"/>
+
+        <!-- Split Add button -->
+        <div class="split-add" id="split-add">
+          <button type="button" class="btn-accent split-main" id="add-detachment">+ Add Detachment</button>
+          <button type="button" class="btn-accent split-caret" id="add-menu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="add-menu" title="Choose detachment type">▾</button>
+          <div id="add-menu" class="menu" role="menu"></div>
+        </div>
+
+        <button type="button" id="save-local">💾 Save</button>
+        <button type="button" id="load-local" class="btn-ghost">↩ Load</button>
+        <button type="button" id="export-json">⬇ Export JSON</button>
+        <label class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer">
+          ⬆ Import JSON
+          <input id="import-json" type="file" accept="application/json" style="display:none"/>
+        </label>
+        <label class="btn-ghost btn-sm" style="display:inline-flex; align-items:center; gap:8px; border-radius:10px; padding:8px 10px">
+          <input id="autosave-toggle" type="checkbox" checked style="accent-color:#7ac4ff"> Autosave
+        </label>
+        <span class="pill" id="autosave-pill">Autosave: On</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding-top:12px">
+    <section class="grid">
+      <aside class="col-5">
+        <div class="panel" id="sidebar">
+          <div class="panel-head" style="gap:8px; align-items:flex-start">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+              <h2 style="margin-right:6px">Army Visualiser</h2>
+              <span class="hint" id="group-label">Grouped by Unit Type</span>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center">
+              <label class="hint" for="group-mode">Group by</label>
+              <select id="group-mode" class="btn-ghost btn-sm" style="padding:6px 10px; border-radius:10px">
+                <option value="type">Unit Type</option>
+                <option value="detachment">Detachment</option>
+              </select>
+              <button id="export-vis-txt" class="btn-ghost btn-sm" type="button">TXT</button>
+              <button id="export-vis-pdf" class="btn-ghost btn-sm" type="button">PDF</button>
+              <button id="export-vis-png" class="btn-ghost btn-sm" type="button">PNG</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div id="visualiserArmyName" class="hint" style="margin-bottom:8px">Army: Untitled Army</div>
+            <div id="visualiserTotals" class="vis-summary">
+              <div class="kpi-mini"><span>Total Points</span> <b id="visTotalPts">0</b></div>
+              <div class="kpi-mini"><span>Total Units</span> <b id="visTotalUnits">0</b></div>
+              <div class="kpi-mini"><span>Detachments</span> <b id="visDetCount">0</b></div>
+            </div>
+            <div id="visualiser">
+              <div class="hint">No units yet. Add some on the right.</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="col-7">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Force Overview</h2>
+            <div class="totals">
+              <div class="kpi"><span>Total Points</span> <b id="grandTotal">0</b></div>
+              <div class="kpi"><span>Total Units</span> <b id="grandUnits">0</b></div>
+              <div class="kpi"><span>Detachments</span> <b id="detachmentCount">0</b></div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="footer">Tip: duplicate detachments for quick variants; edit inline by clicking cells.</div>
+          </div>
+        </div>
+        <div id="detachments" style="margin-top:16px"></div>
+      </div>
+    </section>
+  </main>
+
+  <template id="detachment-template">
+    <div class="panel detachment" data-detachment>
+      <div class="panel-head detachment-header">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+          <input class="name-input" data-name-input placeholder="Detachment name (e.g., Primary, Allied, Zone Mortalis)"/>
+          <div class="totals">
+            <div class="kpi"><span>Points</span> <b data-total>0</b></div>
+            <div class="kpi"><span>Units</span> <b data-count>0</b></div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button type="button" data-duplicate>Duplicate</button>
+          <button type="button" class="btn-danger" data-remove>Remove</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <form class="unit-form" data-form>
+          <input class="uf-name" required placeholder="Unit name" data-u-name />
+          <select class="uf-type" data-u-cat></select>
+          <input class="uf-pts" required type="number" inputmode="numeric" min="0" step="1" placeholder="Points" data-u-pts />
+          <button class="uf-add btn-accent" type="submit" title="Add Unit">Add Unit</button>
+          <label class="uf-prime"><input type="checkbox" data-u-prime> Prime</label>
+          <label class="uf-logi"><input type="checkbox" data-u-logi> Logistical Benefit</label>
+          <textarea class="uf-comment" placeholder="Comment (wargear / weapons)" data-u-comment></textarea>
+        </form>
+
+        <div class="hint" style="margin:10px 0">Click a cell to edit. Press Enter to save, Esc to cancel. Tick boxes toggle immediately.</div>
+
+        <div style="overflow:auto; border-radius:12px; border:1px solid rgba(255,255,255,.06)">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:22%">Unit</th>
+                <th style="width:18%">Unit Type</th>
+                <th style="width:10%">Points</th>
+                <th style="width:8%">Prime</th>
+                <th style="width:12%">Logistical Benefit</th>
+                <th style="width:28%">Comment</th>
+                <th style="width:2%"></th>
+              </tr>
+            </thead>
+            <tbody data-rows></tbody>
+            <tfoot>
+              <tr>
+                <th colspan="2" style="text-align:right; color:var(--text)">Detachment Total</th>
+                <th data-total>0</th>
+                <th colspan="4"></th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template id="row-template">
+    <tr data-row>
+      <td data-field="name"></td>
+      <td data-field="category"></td>
+      <td data-field="points" style="font-variant-numeric: tabular-nums"></td>
+      <td data-field="prime"></td>
+      <td data-field="logistical"></td>
+      <td data-field="comment"></td>
+      <td class="actions">
+        <button type="button" class="btn-ghost" data-delete>Delete</button>
+      </td>
+    </tr>
+  </template>
+
+  <script>
+  // --- Constants ---
+  const CATEGORY_OPTIONS = [
+    'Warlord','High Command','Command','Retinue','Elites','War-Engine','Troops','Support','Lord of War','Transport','Heavy Assault','Heavy Transport','Armour','Recon','Fast Attack'
+  ];
+  const DETACHMENT_GROUPS = {
+    'Primary Detachment': ['Crusade Primary Detachment'],
+    'Auxiliary Detachments': ['Armoured Fist','Tactical Support','Armoured Support','Heavy Support','Combat Pioneer','Shock Assault','First Strike'],
+    'Apex Detachments': ['Combat Retinue','Officer Cadre','Army Vanguard']
+  };
+  const DETACHMENT_TEMPLATES = {
+    'Crusade Primary Detachment': [
+      { category: 'High Command', count: 1 },
+      { category: 'Command', count: 3 },
+      { category: 'Troops', count: 4 },
+      { category: 'Transport', count: 4 }
+    ],
+    // Apex
+    'Combat Retinue': [ { category: 'Retinue', count: 3 } ],
+    'Officer Cadre': [ { category: 'Command', count: 2 } ],
+    'Army Vanguard': [ { category: 'Elites', count: 3 } ],
+    // Auxiliary
+    'Armoured Fist': [ { category: 'Transport', count: 4 }, { category: 'Heavy Transport', count: 4 } ],
+    'Tactical Support': [ { category: 'Troops', count: 2 }, { category: 'Support', count: 2 } ],
+    'Armoured Support': [ { category: 'Armour', count: 4 } ],
+    'Heavy Support': [ { category: 'War-Engine', count: 1 } ],
+    'Combat Pioneer': [ { category: 'Recon', count: 2 } ],
+    'Shock Assault': [ { category: 'Heavy Assault', count: 2 } ],
+    'First Strike': [ { category: 'Fast Attack', count: 2 } ]
+  };
+  // Default prime(s) to set for some detachment templates
+  const DETACHMENT_PRIME_DEFAULTS = {
+    'Crusade Primary Detachment': ['Command','Troops'],
+    'Combat Retinue': ['Retinue'],
+    'Officer Cadre': ['Command'],
+    'Army Vanguard': ['Elites']
+  };
+  const APP_VERSION = 'v1.5.4';
+  const LS_KEY = 'hh30_armylist';
+
+  // --- State ---
+  const state = { armyName: '', visGroup: 'type', autosave: true, detachments: [], preferredDetachmentType: 'Crusade Primary Detachment' };
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const uid = () => Math.random().toString(36).slice(2,9);
+
+  function getArmyName(){ const input = document.getElementById('army-name-input'); const v = input ? input.value.trim() : ''; return v || (state.armyName && state.armyName.trim()) || 'Untitled Army'; }
+  function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s])); }
+
+  function saveToLocal(){ if(!state.autosave) return; localStorage.setItem(LS_KEY, JSON.stringify(state)); pulse($('#autosave-pill')); }
+  function forceSaveToLocal(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); pulse($('#autosave-pill')); }
+
+  function ensureDefaultIfEmpty(){ if(!Array.isArray(state.detachments) || state.detachments.length===0){ state.detachments = [{ id: uid(), name: 'Crusade Primary Detachment', units: [], kind: 'primary' }]; return true; } return false; }
+  function updateAutosaveUI(){ const pill = $('#autosave-pill'); const toggle = $('#autosave-toggle'); if(toggle) toggle.checked = !!state.autosave; if(pill) pill.textContent = `Autosave: ${state.autosave ? 'On' : 'Off'}`; }
+
+  // --- Kind helpers ---
+  const APEX_NAMES = DETACHMENT_GROUPS['Apex Detachments'];
+  function groupForName(name){
+    if(APEX_NAMES.includes(name)) return 'apex';
+    if(DETACHMENT_GROUPS['Primary Detachment'].includes(name)) return 'primary';
+    if(DETACHMENT_GROUPS['Auxiliary Detachments'].includes(name)) return 'auxiliary';
+    return 'custom';
+  }
+  function getKind(det){ return det.kind || groupForName(det.name || ''); }
+  function apexCount(){ return state.detachments.filter(d => getKind(d) === 'apex').length; }
+  function hasHighCommandInNonApex(){
+    return state.detachments.some(d => getKind(d) !== 'apex' && d.units && d.units.some(u => !u.placeholder && u.category === 'High Command'));
+  }
+  function canSelectApex(){
+    if(apexCount() >= 1) return { ok:false, reason:'limit' };
+    if(!hasHighCommandInNonApex()) return { ok:false, reason:'noHC' };
+    return { ok:true };
+  }
+  function explainApexBlock(reason){
+    if(reason === 'limit') alert('Only one Apex detachment is allowed in an army.');
+    else alert('No High Command Selected — add at least one High Command unit in a non-Apex detachment.');
+  }
+
+  // --- Rendering ---
+  const detachmentTpl = $('#detachment-template');
+  const rowTpl = $('#row-template');
+  const detachmentHost = $('#detachments');
+
+  function injectCategoryOptions(selectEl, currentValue=''){ selectEl.innerHTML = '<option value="">— Select Unit Type —</option>' + CATEGORY_OPTIONS.map(o=>`<option value="${o}">${o}</option>`).join(''); if(currentValue){ selectEl.value = currentValue; } selectEl.title = selectEl.value || '— Select Unit Type —'; selectEl.addEventListener('change', ()=> selectEl.title = selectEl.value || '— Select Unit Type —'); }
+
+  function renderAll(){ detachmentHost.innerHTML=''; state.detachments.forEach(d=> detachmentHost.appendChild(renderDetachment(d))); updateOverview(); renderVisualiser(false); saveToLocal(); }
+
+  function renderDetachment(det){
+    const node = detachmentTpl.content.firstElementChild.cloneNode(true);
+    node.dataset.id = det.id;
+
+    const nameInput = $('[data-name-input]', node);
+    nameInput.value = det.name || '';
+    nameInput.addEventListener('input', () => { det.name = nameInput.value; updateDetachmentTotals(det, node); updateOverview(); renderVisualiser(false); saveToLocal(); });
+
+    const form = $('[data-form]', node);
+    const catSelect = $('[data-u-cat]', node);
+    injectCategoryOptions(catSelect);
+
+    const rowsHost = $('[data-rows]', node);
+    det.units.forEach(u => rowsHost.appendChild(renderRow(det, u)));
+
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const name = form.querySelector('[data-u-name]').value.trim();
+      const cat  = form.querySelector('[data-u-cat]').value.trim();
+      const pts  = parseInt(form.querySelector('[data-u-pts]').value,10);
+      const prime = form.querySelector('[data-u-prime]')?.checked || false;
+      const logi = form.querySelector('[data-u-logi]')?.checked || false;
+      const comment = form.querySelector('[data-u-comment]').value.trim();
+      if(!name || isNaN(pts)) return;
+      const unit = { id: uid(), name, category: cat, points: Math.max(0, pts), prime: !!prime, logistical: !!logi, comment, placeholder: false };
+      det.units.push(unit);
+      rowsHost.appendChild(renderRow(det, unit));
+      form.reset(); injectCategoryOptions(catSelect);
+      updateDetachmentTotals(det, node); updateOverview(); renderVisualiser(false); saveToLocal();
+    });
+
+    $('[data-remove]', node).addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); if(!confirm('Remove detachment?')) return; removeDetachmentById(det.id); });
+
+    $('[data-duplicate]', node).addEventListener('click', ()=>{
+      if(getKind(det) === 'apex'){ alert('Cannot duplicate an Apex detachment (only one allowed).'); return; }
+      const copy = JSON.parse(JSON.stringify(det)); copy.id = uid(); copy.name = (copy.name || 'Detachment') + ' (Copy)'; copy.units = copy.units.map(u=>({...u, id: uid()})); state.detachments.push(copy); renderAll();
+    });
+
+    updateDetachmentTotals(det, node);
+    return node;
+  }
+
+  function removeDetachmentById(id){ const before = state.detachments.length; state.detachments = state.detachments.filter(x=>x.id!==id); if(state.detachments.length !== before){ renderAll(); return true; } return false; }
+
+  function renderRow(det, unit){
+    unit.prime = !!unit.prime; unit.logistical = !!unit.logistical; unit.comment = unit.comment || '';
+
+    const tr = rowTpl.content.firstElementChild.cloneNode(true);
+    tr.dataset.id = unit.id;
+    const nameCell = tr.querySelector('[data-field="name"]');
+    const catCell  = tr.querySelector('[data-field="category"]');
+    const ptsCell  = tr.querySelector('[data-field="points"]');
+    const primeCell = tr.querySelector('[data-field="prime"]');
+    const logiCell  = tr.querySelector('[data-field="logistical"]');
+    const cmtCell  = tr.querySelector('[data-field="comment"]');
+
+    const isPH = !!unit.placeholder;
+    nameCell.textContent = isPH ? '— Empty Slot —' : unit.name; if(isPH) nameCell.classList.add('cell-placeholder');
+    catCell.textContent  = unit.category || '';
+    ptsCell.textContent  = isPH ? '—' : unit.points;
+    cmtCell.textContent  = isPH ? '' : (unit.comment || '');
+
+    const primeBox = document.createElement('input'); primeBox.type='checkbox'; primeBox.checked = !!unit.prime; if(isPH){ primeBox.disabled=true; primeBox.classList.add('checkbox-disabled'); } primeBox.addEventListener('change', ()=>{ unit.prime = primeBox.checked; renderVisualiser(false); saveToLocal(); }); primeCell.appendChild(primeBox);
+    const logiBox = document.createElement('input'); logiBox.type='checkbox'; logiBox.checked = !!unit.logistical; if(isPH){ logiBox.disabled=true; logiBox.classList.add('checkbox-disabled'); } logiBox.addEventListener('change', ()=>{ unit.logistical = logiBox.checked; renderVisualiser(false); saveToLocal(); }); logiCell.appendChild(logiBox);
+
+    // Make editable cells visually obvious
+    ;[nameCell, catCell, ptsCell, cmtCell].forEach(td=> td.classList.add('cell-editable'));
+
+    function commitAndMaybePromote(){
+      if(unit.placeholder && ((unit.name && unit.name.trim()) || (parseInt(unit.points,10)||0) > 0 || (unit.comment && unit.comment.trim()))){
+        unit.placeholder = false;
+        primeBox.disabled = false; primeBox.classList.remove('checkbox-disabled');
+        logiBox.disabled = false; logiBox.classList.remove('checkbox-disabled');
+        nameCell.classList.remove('cell-placeholder');
+        ptsCell.textContent = unit.points|0;
+      }
+      updateFor(det);
+    }
+
+    function makeEditableText(td, key, type='text'){
+      td.addEventListener('click', ()=>{
+        if(td.querySelector('input')) return;
+        const old = td.textContent;
+        const input = document.createElement('input'); input.type = (key==='points')? 'number' : type; input.value = (key==='points') ? (unit.points||'') : (unit[key]||'');
+        input.style.width='100%'; input.style.padding='8px 10px'; input.style.background='#0e131a'; input.style.color='var(--text)'; input.style.border='1px solid rgba(255,255,255,.2)'; input.style.borderRadius='8px';
+        td.innerHTML=''; td.appendChild(input); input.focus(); input.select();
+        function commit(){ let v=input.value.trim(); if(key==='points'){ const n=parseInt(v,10); if(isNaN(n)){ cancel(); return;} unit.points=Math.max(0,n); td.textContent=unit.points; } else { unit[key]=v; td.textContent=v || (key==='name' && unit.placeholder ? '— Empty Slot —' : ''); if(key==='name' && !v && unit.placeholder){ td.classList.add('cell-placeholder'); } else { td.classList.remove('cell-placeholder'); } }
+          commitAndMaybePromote(); }
+        function cancel(){ td.textContent=old; }
+        input.addEventListener('keydown', ev=>{ if(ev.key==='Enter') commit(); if(ev.key==='Escape') cancel(); }); input.addEventListener('blur', commit);
+      });
+    }
+
+    function makeEditableCategory(td){
+      td.addEventListener('click', ()=>{
+        if(td.querySelector('select')) return;
+        const oldV = unit.category || '';
+        const select = document.createElement('select');
+        select.style.width='100%'; select.style.padding='8px 10px'; select.style.background='#0e131a'; select.style.color='var(--text)'; select.style.border='1px solid rgba(255,255,255,.2)'; select.style.borderRadius='8px';
+        select.innerHTML = '<option value="">— Select Unit Type —</option>' + CATEGORY_OPTIONS.map(o=>`<option value="${o}">${o}</option>`).join('');
+        select.value = oldV; select.title = select.value || '— Select Unit Type —';
+        td.innerHTML=''; td.appendChild(select); select.focus();
+        function commit(){ unit.category = select.value; td.textContent = unit.category; commitAndMaybePromote(); }
+        select.addEventListener('change', ()=>{ select.title = select.value || '— Select Unit Type —'; commit(); });
+        select.addEventListener('blur', commit);
+        select.addEventListener('keydown', ev=>{ if(ev.key==='Enter') commit(); if(ev.key==='Escape'){ td.textContent = oldV; }});
+      });
+    }
+
+    makeEditableText(nameCell, 'name'); makeEditableCategory(catCell); makeEditableText(ptsCell, 'points'); makeEditableText(cmtCell, 'comment');
+
+    tr.querySelector('[data-delete]').addEventListener('click', ()=>{ det.units = det.units.filter(u=>u.id!==unit.id); tr.remove(); updateFor(det); });
+
+    return tr; function updateFor(det){ updateDetachmentTotals(det, tr.closest('[data-detachment]')); updateOverview(); renderVisualiser(false); saveToLocal(); }
+  }
+
+  function updateDetachmentTotals(det, detNode){ const real = det.units.filter(u=>!u.placeholder); const total = real.reduce((s,u)=> s + (parseInt(u.points,10)||0), 0); const count = real.length; detNode.querySelectorAll('[data-total]').forEach(el=> el.textContent = total); $('[data-count]', detNode).textContent = count; }
+
+  function updateOverview(){ const allUnits = state.detachments.flatMap(d=>d.units.filter(u=>!u.placeholder)); $('#detachmentCount').textContent = state.detachments.length; const total = allUnits.reduce((s,u)=> s + (parseInt(u.points,10)||0), 0); const count = allUnits.length; $('#grandTotal').textContent = total; $('#grandUnits').textContent = count; }
+
+  // --- Visualiser helpers ---
+  function computeTotals(){ const units = state.detachments.flatMap(d=>d.units.filter(u=>!u.placeholder)); const det = state.detachments.length; const pts = units.reduce((s,u)=> s + (parseInt(u.points,10)||0), 0); return { det, units: units.length, pts }; }
+
+  function getVisualizerData(mode){
+    const allByDet = state.detachments.map(d=>({ name: d.name || 'Untitled', units: d.units.filter(u=>!u.placeholder) }));
+    if(mode === 'detachment'){
+      return allByDet.map(g=>({ key: g.name, label: g.name, list: g.units.slice().sort((a,b)=> a.name.localeCompare(b.name)), points: g.units.reduce((s,u)=> s + (parseInt(u.points,10)||0), 0) })).filter(g=>g.list.length>0);
+    }
+    const cats = {}; allByDet.forEach(d=>{ d.units.forEach(u=>{ const k = u.category || 'Uncat'; (cats[k]||(cats[k]=[])).push({ ...u, _detName: d.name || 'Untitled' }); }); });
+    return Object.entries(cats).map(([category, list])=>({ key: category, label: category, list: list.sort((a,b)=> a.name.localeCompare(b.name)), points: list.reduce((s,u)=> s + (parseInt(u.points,10)||0), 0) })).sort((a,b)=> a.label.localeCompare(b.label));
+  }
+
+  function renderVisualiser(showComments=false){
+    const totals = computeTotals();
+    $('#visualiserArmyName').textContent = `Army: ${getArmyName()}`;
+    $('#visTotalPts').textContent = totals.pts; $('#visTotalUnits').textContent = totals.units; $('#visDetCount').textContent = totals.det;
+    const groupLabelEl = document.getElementById('group-label'); groupLabelEl.textContent = `Grouped by ${state.visGroup === 'detachment' ? 'Detachment' : 'Unit Type'}`;
+
+    const host = document.getElementById('visualiser');
+    const data = getVisualizerData(state.visGroup);
+    if(data.length===0){ host.innerHTML = '<div class="hint">No units yet. Add some on the right.</div>'; return; }
+
+    host.innerHTML = data.map(({label, list, points})=>{
+      const rows = list.map(u=>{
+        const tags = [];
+        if(state.visGroup === 'type') tags.push({label: (u._detName||'Untitled'), cls: 'tag-det'});
+        if(u.prime) tags.push({label:'Prime', cls:'tag-prime'});
+        if(u.logistical) tags.push({label:'Logistical Benefit', cls:'tag-logi'});
+        const commentHtml = (showComments && u.comment) ? `<div class=\"unit-comment\">${escapeHtml(u.comment)}</div>` : '';
+        return `<div class=\"unit-row\"><div><strong>${escapeHtml(u.name)}</strong> ${tags.map(t=>`<span class=\"tag ${t.cls}\">${escapeHtml(t.label)}</span>`).join(' ')}${commentHtml}</div><div>${u.points|0} pts</div></div>`;
+      }).join('');
+      return `<div class=\"cat\"><h3><span>${escapeHtml(label)}</span><small>${points} pts</small></h3>${rows}</div>`;
+    }).join('');
+  }
+
+  // Text export
+  function buildVisualizerText(){
+    const totals = computeTotals();
+    const data = getVisualizerData(state.visGroup);
+
+    const lines = [];
+    lines.push(getArmyName());
+    lines.push(`Grouping: ${state.visGroup === 'detachment' ? 'Detachment' : 'Unit Type'}`);
+    lines.push(`Detachments: ${totals.det}    Units: ${totals.units}    Total Points: ${totals.pts}`);
+    lines.push('');
+
+    if (data.length === 0) {
+      lines.push('No units.');
+      return lines.join('\n');
+    }
+
+    data.forEach(({label, list, points}) => {
+      lines.push(`${label} - ${points} pts`);
+      list.forEach(u => {
+        const tags = [];
+        if (state.visGroup === 'type') tags.push(u._detName);
+        if (u.prime) tags.push('Prime');
+        if (u.logistical) tags.push('Logistical Benefit');
+        lines.push(`  - ${u.name}${tags.length ? ' [' + tags.join(', ') + ']' : ''} — ${u.points|0} pts`);
+        if (u.comment && u.comment.trim()) lines.push(`      > ${u.comment.trim()}`);
+      });
+      lines.push('');
+    });
+
+    return lines.join('\n');
+  }
+
+  function downloadBlob(filename, mime, text){ const blob = new Blob([text], {type: mime}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); URL.revokeObjectURL(a.href); }
+
+  // PNG export (draw text to a canvas)
+  function exportVisualizerPNG(){
+    const totals = computeTotals(); const data = getVisualizerData(state.visGroup); const armyName = getArmyName();
+    const pad = 24, colGap = 20; const fontTitle = 'bold 18px sans-serif'; const fontMeta  = '14px sans-serif'; const fontCat = 'bold 16px sans-serif'; const fontUnit = '14px sans-serif'; const fontComment = '12px sans-serif'; const metaLine = 22, unitLine = 22, commentLine = 18, catLine = 28;
+
+    const measureCtx = document.createElement('canvas').getContext('2d'); let width = 900; let height = pad;
+    measureCtx.font = fontTitle; width = Math.max(width, pad*2 + measureCtx.measureText(armyName).width); height += metaLine;
+    const metaText2 = `Grouping: ${state.visGroup === 'detachment' ? 'Detachment' : 'Unit Type'}`; const metaText3 = `Detachments: ${totals.det}    Units: ${totals.units}    Total Points: ${totals.pts}`;
+    measureCtx.font = fontMeta; width = Math.max(width, pad*2 + measureCtx.measureText(metaText2).width); height += metaLine; width = Math.max(width, pad*2 + measureCtx.measureText(metaText3).width); height += metaLine;
+
+    const parts = [];
+    data.forEach(({label, list, points})=>{
+      measureCtx.font = fontCat; const catText = `${label} - ${points} pts`; width = Math.max(width, pad*2 + measureCtx.measureText(catText).width); parts.push({type:'cat', text:catText}); height += catLine; measureCtx.font = fontUnit;
+      list.forEach(u=>{ const tags = []; if(state.visGroup === 'type') tags.push(u._detName); if(u.prime) tags.push('Prime'); if(u.logistical) tags.push('Logistical Benefit'); const left = `${u.name}${tags.length? ' ['+tags.join(', ')+']' : ''}`; const right = `${u.points|0} pts`; const leftW = measureCtx.measureText(left).width; const rightW = measureCtx.measureText(right).width; width = Math.max(width, pad*2 + leftW + colGap + rightW); parts.push({type:'unit', left, right}); height += unitLine; if(u.comment && u.comment.trim()){ measureCtx.font = fontComment; const ctext = `> ${u.comment.trim()}`; width = Math.max(width, pad*2 + measureCtx.measureText(ctext).width); parts.push({type:'comment', text: ctext}); height += commentLine; measureCtx.font = fontUnit; } }); height += 6; });
+
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1)); const canvas = document.createElement('canvas'); canvas.width = Math.ceil(width * dpr); canvas.height = Math.ceil((height + pad) * dpr); const c = canvas.getContext('2d'); c.scale(dpr, dpr);
+    c.fillStyle = '#ffffff'; c.fillRect(0,0,canvas.width,canvas.height); c.fillStyle = '#000000'; c.font = fontTitle; c.fillText(armyName, pad, pad + 4); c.font = fontMeta; c.fillText(metaText2, pad, pad + metaLine + 6); c.font = fontMeta; c.fillText(metaText3, pad, pad + metaLine*2 + 8);
+
+    let y = pad + metaLine*3 + 10; parts.forEach(p=>{ if(p.type==='cat'){ y += catLine; c.font = fontCat; c.fillText(p.text, pad, y); } else if(p.type==='unit'){ y += unitLine; c.font = fontUnit; c.fillText(p.left, pad, y); const rightW = c.measureText(p.right).width; c.fillText(p.right, canvas.width/dpr - pad - rightW, y); } else if(p.type==='comment'){ y += 16; c.font = fontComment; c.fillText(p.text, pad + 20, y); } });
+
+    const url = canvas.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = 'army-visualiser.png'; a.click();
+  }
+
+  // PDF export — temporarily render comments, then revert
+  function exportVisualizerPDF(){
+    const cleanup = ()=>{ document.body.classList.remove('print-visualiser-only'); if(oldTitle){ titleEl.textContent = oldTitle; } renderVisualiser(false); window.onafterprint = null; };
+    const titleEl = document.querySelector('#sidebar .panel-head h2'); const oldTitle = titleEl ? titleEl.textContent : ''; const armyName = getArmyName(); if(titleEl) titleEl.textContent = armyName;
+    window.onafterprint = cleanup; renderVisualiser(true); document.body.classList.add('print-visualiser-only'); window.print(); setTimeout(cleanup, 1500);
+  }
+
+  function pulse(el){ if(!el) return; el.animate([{transform:'scale(1)',opacity:1},{transform:'scale(1.05)',opacity:.8},{transform:'scale(1)',opacity:1}],{duration:400,easing:'ease-out'}); }
+
+  // --- Split button menu logic ---
+  function buildAddMenu(){
+    const menu = document.getElementById('add-menu');
+    if(!menu) return;
+    menu.innerHTML = '';
+    Object.entries(DETACHMENT_GROUPS).forEach(([group, items], gi)=>{
+      const h = document.createElement('div'); h.className='menu-header'; h.textContent = group; menu.appendChild(h);
+      items.forEach(name=>{
+        const it = document.createElement('button'); it.type='button'; it.className='menu-item'; it.textContent = name; it.setAttribute('role','menuitem');
+        // Apex rule: don't disable; show popup on click if blocked
+        const isApex = APEX_NAMES.includes(name);
+        let blockedReason = null;
+        if(isApex){ const can = canSelectApex(); if(!can.ok){ blockedReason = can.reason; it.setAttribute('aria-disabled','true'); it.title = (can.reason==='limit')? 'Only one Apex detachment allowed.' : 'No High Command Selected'; } }
+        it.addEventListener('click', ()=>{
+          state.preferredDetachmentType = name;
+          if(isApex && blockedReason){ explainApexBlock(blockedReason); return; }
+          addDetachment(name, { fromMenu:true }); closeAddMenu();
+        });
+        menu.appendChild(it);
+      });
+      if(gi < Object.keys(DETACHMENT_GROUPS).length-1){ const hr=document.createElement('hr'); menu.appendChild(hr); }
+    });
+  }
+  function openAddMenu(){
+    const t = document.getElementById('add-menu-toggle');
+    const m = document.getElementById('add-menu');
+    if(!m||!t) return;
+    // Always rebuild so enable/disable reflects current state
+    buildAddMenu();
+    if(m.parentElement !== document.body) document.body.appendChild(m);
+    // show hidden for measurement
+    m.style.display='block'; m.style.visibility='hidden';
+    const r = t.getBoundingClientRect();
+    const mw = m.offsetWidth || 260;
+    const left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.right - mw));
+    const top = Math.min(window.innerHeight - 8, r.bottom + 6);
+    m.style.left = left + 'px';
+    m.style.top = top + 'px';
+    m.style.visibility = 'visible';
+    t.setAttribute('aria-expanded','true');
+
+    // listeners
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('scroll', onScrollResize, true);
+    window.addEventListener('resize', onScrollResize, true);
+  }
+  function closeAddMenu(){
+    const t = document.getElementById('add-menu-toggle');
+    const m = document.getElementById('add-menu');
+    if(!m||!t) return;
+    m.style.display='none';
+    t.setAttribute('aria-expanded','false');
+    document.removeEventListener('click', onDocClick, true);
+    document.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('scroll', onScrollResize, true);
+    window.removeEventListener('resize', onScrollResize, true);
+  }
+  function onDocClick(e){ const m=document.getElementById('add-menu'); const t=document.getElementById('add-menu-toggle'); if(!m) return; if(!m.contains(e.target) && e.target!==t) closeAddMenu(); }
+  function onKey(e){ if(e.key==='Escape') closeAddMenu(); }
+  function onScrollResize(){ closeAddMenu(); }
+
+  function createPlaceholderUnit(category){ return { id: uid(), name: '', category, points: 0, prime: false, logistical: false, comment: '', placeholder: true }; }
+
+  function addDetachment(name, opts={fromMenu:false}){ 
+    const kind = groupForName(name);
+    if(kind === 'apex'){
+      const can = canSelectApex();
+      if(!can.ok){ explainApexBlock(can.reason); return; }
+    }
+    const det = { id: uid(), name: name||'', units: [], kind };
+    if(opts.fromMenu && DETACHMENT_TEMPLATES[name]){
+      DETACHMENT_TEMPLATES[name].forEach(({category, count})=>{ for(let i=0;i<count;i++) det.units.push(createPlaceholderUnit(category)); });
+      const primes = DETACHMENT_PRIME_DEFAULTS[name] || [];
+      primes.forEach(cat=>{ const u = det.units.find(u=>u.category===cat); if(u) u.prime = true; });
+    }
+    state.detachments.push(det); renderAll();
+  }
+
+  // --- Actions ---
+  document.getElementById('add-detachment').addEventListener('click', ()=>{
+    const name = state.preferredDetachmentType || 'Crusade Primary Detachment';
+    const kind = groupForName(name);
+    if(kind === 'apex'){
+      const can = canSelectApex();
+      if(!can.ok){ explainApexBlock(can.reason); return; }
+    }
+    addDetachment(name, { fromMenu:false });
+  });
+  document.getElementById('add-menu-toggle').addEventListener('click', (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    const m=document.getElementById('add-menu');
+    const isHidden = (m.style.display==='none' || !m.style.display);
+    if(isHidden) openAddMenu(); else closeAddMenu();
+  });
+
+  document.getElementById('save-local').addEventListener('click', ()=>{ forceSaveToLocal(); updateAutosaveUI(); });
+  document.getElementById('load-local').addEventListener('click', loadFromLocalEnhanced);
+  document.getElementById('export-json').addEventListener('click', ()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='hh30_armylist.json'; a.click(); URL.revokeObjectURL(a.href); });
+  document.getElementById('import-json').addEventListener('change', (e)=>{ const file=e.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=()=>{
+      try{
+        const parsed=JSON.parse(reader.result);
+        if(parsed && Array.isArray(parsed.detachments)){
+          state.detachments=parsed.detachments.map(d=>({ ...d, kind: d.kind || groupForName(d.name||'') }));
+          state.armyName = parsed.armyName || '';
+          state.visGroup = parsed.visGroup || 'type';
+          state.autosave = parsed.autosave !== undefined ? !!parsed.autosave : true;
+          state.preferredDetachmentType = parsed.preferredDetachmentType || state.preferredDetachmentType;
+          renderAll();
+          updateAutosaveUI();
+          const armyInput = document.getElementById('army-name-input');
+          if(armyInput) armyInput.value = state.armyName || '';
+          renderVisualiser(false);
+        } else { alert('Invalid file format.'); }
+      }catch(err){ alert('Could not parse JSON.'); }
+    }; reader.readAsText(file); });
+  document.getElementById('export-vis-txt').addEventListener('click', ()=> downloadBlob('army-visualiser.txt','text/plain', buildVisualizerText()));
+  document.getElementById('export-vis-pdf').addEventListener('click', exportVisualizerPDF);
+  document.getElementById('export-vis-png').addEventListener('click', exportVisualizerPNG);
+  document.getElementById('group-mode').addEventListener('change', (e)=>{ state.visGroup = e.target.value; renderVisualiser(false); saveToLocal(); });
+  document.getElementById('autosave-toggle').addEventListener('change', (e)=>{ state.autosave = e.target.checked; updateAutosaveUI(); forceSaveToLocal(); });
+
+  // Helper: improved Load handler ensures army name sync
+  function loadFromLocalEnhanced(){
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw){
+      ensureDefaultIfEmpty();
+      renderAll();
+      updateAutosaveUI();
+      const armyInput = document.getElementById('army-name-input');
+      if(armyInput) armyInput.value = state.armyName || '';
+      renderVisualiser(false);
+      return;
+    }
+    try{
+      const parsed = JSON.parse(raw);
+      if(parsed && parsed.detachments){
+        state.detachments = (Array.isArray(parsed.detachments) ? parsed.detachments : []).map(d=>({ ...d, kind: d.kind || groupForName(d.name||'') }));
+        state.armyName = parsed.armyName || '';
+        state.visGroup = parsed.visGroup || 'type';
+        state.autosave = parsed.autosave !== undefined ? !!parsed.autosave : true;
+        state.preferredDetachmentType = parsed.preferredDetachmentType || state.preferredDetachmentType;
+      }
+    }catch(e){ /* ignore parse error */ }
+    ensureDefaultIfEmpty();
+    renderAll();
+    updateAutosaveUI();
+    const armyInput = document.getElementById('army-name-input');
+    if(armyInput) armyInput.value = state.armyName || '';
+    renderVisualiser(false);
+  }
+
+  // --- Boot ---
+  (function init(){
+    const vEl = document.getElementById('app-version'); if(vEl) vEl.textContent = APP_VERSION;
+
+    // restore saved
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){
+      try{
+        const parsed = JSON.parse(raw);
+        state.detachments = (Array.isArray(parsed.detachments) ? parsed.detachments : []).map(d=>({ ...d, kind: d.kind || groupForName(d.name||'') }));
+        state.armyName = parsed.armyName || '';
+        state.visGroup = parsed.visGroup || 'type';
+        state.autosave = parsed.autosave !== undefined ? !!parsed.autosave : true;
+        state.preferredDetachmentType = parsed.preferredDetachmentType || state.preferredDetachmentType;
+      }catch(e){ /* ignore */ }
+    }
+
+    ensureDefaultIfEmpty();
+    const armyInput = document.getElementById('army-name-input');
+    if(armyInput){ armyInput.value = state.armyName || ''; armyInput.addEventListener('input', ()=>{ state.armyName = armyInput.value; renderVisualiser(false); saveToLocal(); }); }
+    document.getElementById('group-mode').value = state.visGroup;
+    updateAutosaveUI();
+    renderAll();
+  })();
+  </script>
+</body>
+</html>
