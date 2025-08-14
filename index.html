@@ -82,7 +82,7 @@
     table{width:100%; border-collapse: collapse}
     th, td{padding:10px 8px; border-bottom:1px solid rgba(255,255,255,.06); text-align:left; font-size:14px; vertical-align:top}
     th{color:var(--muted); font-weight:700}
-    td.actions{width:1%; white-space:nowrap}
+    td.actions{width:1%; white-space:nowrap; text-align:right}
 
     /* Editable cell affordance */
     .cell-editable{cursor:text}
@@ -124,13 +124,29 @@
     .split-add > button{border-radius:0}
     .split-add .split-main{border-top-left-radius:12px; border-bottom-left-radius:12px}
     .split-add .split-caret{padding:10px 12px; border-left:1px solid rgba(0,0,0,.2); border-top-right-radius:12px; border-bottom-right-radius:12px}
-    .menu{position:fixed; background:linear-gradient(180deg, #202736, #131923); border:1px solid rgba(255,255,255,.12); border-radius:12px; min-width:260px; box-shadow: var(--shadow); padding:6px; z-index:9999; display:none}
+    .menu{position:fixed; background:linear-gradient(180deg, #202736, #131923); border:1px solid rgba(255,255,255,.12); border-radius:12px; min-width:220px; box-shadow: var(--shadow); padding:6px; z-index:9999; display:none}
     .menu hr{border:0; border-top:1px solid rgba(255,255,255,.1); margin:6px 0}
     .menu-header{font-size:11px; color:var(--muted); padding:6px 8px}
     .menu-item{display:block; width:100%; text-align:left; padding:8px 10px; border-radius:8px; background:transparent; color:var(--text); border:1px solid transparent; cursor:pointer}
     .menu-item:hover{background:rgba(255,255,255,.06)}
-    /* Pseudo-disabled look but keep clickable for popup */
     .menu-item[aria-disabled="true"]{opacity:.55; cursor:not-allowed}
+
+    /* Action (kebab) button */
+    .kebab{width:30px; height:30px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center}
+
+    /* Drag & Drop affordances */
+    tbody tr.dragging{opacity:.5}
+    tbody tr.drop-before{box-shadow: inset 0 3px 0 0 var(--accent)}
+    tbody tr.drop-after{ box-shadow: inset 0 -3px 0 0 var(--accent)}
+
+    /* Drag handle visuals */
+    tbody tr{ cursor: grab; }
+    tbody tr.dragging{ cursor: grabbing; }
+    .dragcell{ width:28px; text-align:center; opacity:.9 }
+    .dragcell .grip{ display:inline-block; font-weight:700; user-select:none; letter-spacing:1px }
+    @keyframes nudge{ 0%,100%{ transform: translateX(0) } 50%{ transform: translateX(3px) } }
+    .dragcell .grip.nudge{ animation: nudge 800ms ease-in-out 2 }
+    .drag-hint{ font-size:12px; color: var(--muted) }
 
     /* Print */
     @media print {
@@ -145,6 +161,41 @@
     body.print-visualiser-only .col-7 { display:none !important; }
     body.print-visualiser-only #sidebar { position:static; box-shadow:none }
   </style>
+<style>
+/* === v1.5.8 overlay: Elastic Tilt + GAP (no blue line) === */
+tbody tr, [data-row] {
+  transition: transform 400ms cubic-bezier(.68,-0.55,.27,1.55), box-shadow 200ms ease;
+  will-change: transform, box-shadow;
+}
+tr.dragging, [data-row].dragging {
+  transform: scale(1.03) rotate(1deg);
+  box-shadow: 0 18px 28px rgba(0,0,0,.40);
+  opacity: .97;
+}
+
+/* GAP indicator: smooth empty slot */
+.hh3-gap-row td {
+  height: 0;
+  padding: 0 !important;
+  border: 0;
+  background: none !important;
+  box-shadow: none !important;
+  transition: height 240ms cubic-bezier(.2,.8,.2,1);
+}
+.hh3-gap-row.show td { height: var(--gap-h, 0px); }
+
+/* Neutralize any legacy drop indicator visuals (blue line, filled bars, etc.) */
+.drop-indicator, .drop-indicator td, .drop-indicator.show, .drop-indicator.show td,
+.hh3-drop-indicator, .hh3-drop-indicator td, .hh3-drop-indicator.show, .hh3-drop-indicator.show td {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+</style>
 </head>
 <body>
   <header>
@@ -152,7 +203,7 @@
       <div class="title">
         <span class="badge">Horus Heresy 3.0</span>
         <h1>Army List Builder</h1>
-        <span class="pill version" id="app-version">v1.5.5</span>
+        <span class="pill version" id="app-version">v1.5.8</span>
       </div>
       <div class="controls">
         <input type="text" id="army-name-input" class="name-input" placeholder="Army name (e.g., XIII Legion Crusade)"/>
@@ -260,12 +311,13 @@
           <textarea class="uf-comment" placeholder="Comment (wargear / weapons)" data-u-comment></textarea>
         </form>
 
-        <div class="hint" style="margin:10px 0">Click a cell to edit. Press Enter to save, Esc to cancel. Tick boxes toggle immediately.</div>
+        <div class="hint" style="margin:10px 0">Click a cell to edit. Press Enter to save, Esc to cancel. Tick boxes toggle immediately. <strong>Drag the ≡ handle to reorder units.</strong></div>
 
         <div style="overflow:auto; border-radius:12px; border:1px solid rgba(255,255,255,.06)">
           <table>
             <thead>
               <tr>
+                <th style="width:28px" title="Drag to reorder"></th>
                 <th style="width:22%">Unit</th>
                 <th style="width:18%">Unit Type</th>
                 <th style="width:10%">Points</th>
@@ -291,6 +343,7 @@
 
   <template id="row-template">
     <tr data-row>
+      <td class="dragcell" data-drag-handle title="Drag to reorder"><span class="grip" aria-hidden="true">≡</span></td>
       <td data-field="name"></td>
       <td data-field="category"></td>
       <td data-field="points" style="font-variant-numeric: tabular-nums"></td>
@@ -298,10 +351,13 @@
       <td data-field="logistical"></td>
       <td data-field="comment"></td>
       <td class="actions">
-        <button type="button" class="btn-ghost" data-delete>Delete</button>
+        <button type="button" class="btn-ghost kebab" data-row-actions aria-haspopup="true" aria-expanded="false" title="Unit actions">⋯</button>
       </td>
     </tr>
   </template>
+
+  <!-- Reusable floating menu for row actions -->
+  <div id="row-menu" class="menu" role="menu" style="display:none"></div>
 
   <script>
   // --- Constants ---
@@ -340,7 +396,7 @@
     'Officer Cadre': ['Command'],
     'Army Vanguard': ['Elites']
   };
-  const APP_VERSION = 'v1.5.5';
+  const APP_VERSION = 'v1.5.8';
   const LS_KEY = 'hh30_armylist';
 
   // --- State ---
@@ -506,7 +562,58 @@
 
     makeEditableText(nameCell, 'name'); makeEditableCategory(catCell); makeEditableText(ptsCell, 'points'); makeEditableText(cmtCell, 'comment');
 
-    tr.querySelector('[data-delete]').addEventListener('click', ()=>{ det.units = det.units.filter(u=>u.id!==unit.id); tr.remove(); updateFor(det); });
+    // Row action (kebab) menu
+    const actionsBtn = tr.querySelector('[data-row-actions]');
+    if(actionsBtn){ actionsBtn.addEventListener('click', (ev)=> openRowMenu(ev, det, unit, tr, actionsBtn)); }
+
+    // Drag & drop within this detachment
+    tr.draggable = true;
+    tr.addEventListener('dragstart', (e)=>{
+      dragState.detId = det.id; dragState.unitId = unit.id; dragState.after=false;
+      tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try{ e.dataTransfer.setData('text/plain', unit.id); }catch(_){}
+    });
+    tr.addEventListener('dragover', (e)=>{
+      if(!dragState.unitId || dragState.detId !== det.id) return;
+      e.preventDefault(); e.dataTransfer.dropEffect='move';
+      const rect = tr.getBoundingClientRect();
+      const after = (e.clientY - rect.top) > rect.height/2;
+      dragState.after = after;
+      clearDndIndicators(tr.parentElement || document);
+      tr.classList.add(after ? 'drop-after' : 'drop-before');
+    });
+    tr.addEventListener('dragleave', ()=>{ tr.classList.remove('drop-before','drop-after'); });
+    tr.addEventListener('drop', (e)=>{
+      if(!dragState.unitId || dragState.detId !== det.id) return;
+      e.preventDefault();
+      clearDndIndicators(tr.parentElement || document);
+      tr.classList.remove('dragging');
+      const srcId = dragState.unitId;
+      const tgtId = unit.id;
+      if(srcId === tgtId){ dragState = {detId:null, unitId:null, after:false}; return; }
+      const srcIdx = det.units.findIndex(u=>u.id===srcId);
+      const tgtIdx = det.units.findIndex(u=>u.id===tgtId);
+      if(srcIdx<0 || tgtIdx<0){ dragState = {detId:null, unitId:null, after:false}; return; }
+      const [moved] = det.units.splice(srcIdx,1);
+      let insertIdx = tgtIdx + (dragState.after ? 1 : 0);
+      if(srcIdx < insertIdx) insertIdx--; // account for removal shift
+      det.units.splice(insertIdx, 0, moved);
+      // Move DOM row
+      const tbody = tr.parentElement;
+      const srcRow = tbody ? tbody.querySelector(`tr[data-row][data-id="${srcId}"]`) : null;
+      if(srcRow){
+        if(dragState.after) tr.insertAdjacentElement('afterend', srcRow);
+        else tbody.insertBefore(srcRow, tr);
+      }
+      updateOverview(); renderVisualiser(false); saveToLocal();
+      dragState = {detId:null, unitId:null, after:false};
+    });
+    tr.addEventListener('dragend', ()=>{ tr.classList.remove('dragging'); clearDndIndicators(tr.parentElement || document); dragState = {detId:null, unitId:null, after:false}; });
+
+    // Subtle "nudge" on the grip to hint draggability
+    const grip = tr.querySelector('[data-drag-handle] .grip');
+    if(grip){ setTimeout(()=> grip.classList.add('nudge'), 80); setTimeout(()=> grip.classList.remove('nudge'), 1600); }
 
     return tr; function updateFor(det){ updateDetachmentTotals(det, tr.closest('[data-detachment]')); updateOverview(); renderVisualiser(false); saveToLocal(); }
   }
@@ -625,13 +732,12 @@
       const h = document.createElement('div'); h.className='menu-header'; h.textContent = group; menu.appendChild(h);
       items.forEach(name=>{
         const it = document.createElement('button'); it.type='button'; it.className='menu-item'; it.textContent = name; it.setAttribute('role','menuitem');
-        // Apex rule: don't disable; show popup on click if blocked
+        // Disable Apex if blocked
         const isApex = APEX_NAMES.includes(name);
-        let blockedReason = null;
-        if(isApex){ const can = canSelectApex(); if(!can.ok){ blockedReason = can.reason; it.setAttribute('aria-disabled','true'); it.title = (can.reason==='limit')? 'Only one Apex detachment allowed.' : 'No High Command Selected'; } }
+        if(isApex){ const can = canSelectApex(); if(!can.ok){ it.setAttribute('aria-disabled','true'); it.title = (can.reason==='limit')? 'Only one Apex detachment allowed.' : 'No High Command Selected'; } }
         it.addEventListener('click', ()=>{
           state.preferredDetachmentType = name;
-          if(isApex && blockedReason){ explainApexBlock(blockedReason); return; }
+          if(isApex){ const can = canSelectApex(); if(!can.ok){ explainApexBlock(can.reason); return; } }
           addDetachment(name, { fromMenu:true }); closeAddMenu();
         });
         menu.appendChild(it);
@@ -693,6 +799,51 @@
       primes.forEach(cat=>{ const u = det.units.find(u=>u.category===cat); if(u) u.prime = true; });
     }
     state.detachments.push(det); renderAll();
+  }
+
+  // --- Drag & Drop (reorder within a detachment) ---
+  let dragState = { detId:null, unitId:null, after:false };
+  function clearDndIndicators(container){ if(!container) return; container.querySelectorAll('.drop-before,.drop-after').forEach(el=> el.classList.remove('drop-before','drop-after')); }
+
+  // --- Row Action Menu helpers ---
+  let rowMenuCtx = null;
+  function buildRowMenu(){
+    const m = document.getElementById('row-menu');
+    if(!m) return;
+    m.innerHTML = '';
+    const dup = document.createElement('button'); dup.type='button'; dup.className='menu-item'; dup.textContent='Duplicate unit';
+    dup.addEventListener('click', ()=>{ if(!rowMenuCtx) return; const {det, unit, tr} = rowMenuCtx; duplicateUnit(det, unit, tr); closeRowMenu(); });
+    const del = document.createElement('button'); del.type='button'; del.className='menu-item'; del.textContent='Delete unit';
+    del.addEventListener('click', ()=>{ if(!rowMenuCtx) return; const {det, unit, tr} = rowMenuCtx; const detNode = tr.closest('[data-detachment]'); det.units = det.units.filter(u=>u.id!==unit.id); tr.remove(); updateDetachmentTotals(det, detNode); updateOverview(); renderVisualiser(false); saveToLocal(); closeRowMenu(); });
+    m.appendChild(dup);
+    m.appendChild(del);
+  }
+  function openRowMenu(ev, det, unit, tr, btn){
+    ev.preventDefault(); ev.stopPropagation();
+    rowMenuCtx = {det, unit, tr};
+    const m = document.getElementById('row-menu'); if(!m) return; buildRowMenu();
+    if(m.parentElement !== document.body) document.body.appendChild(m);
+    m.style.display='block'; m.style.visibility='hidden';
+    const r = btn.getBoundingClientRect();
+    const mw = m.offsetWidth || 220;
+    const left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.right - mw));
+    const top = Math.min(window.innerHeight - 8, r.bottom + 6);
+    m.style.left = left + 'px'; m.style.top = top + 'px'; m.style.visibility = 'visible';
+    document.addEventListener('click', onDocClickRowMenu, true);
+    document.addEventListener('keydown', onKeyRowMenu, true);
+    window.addEventListener('scroll', closeRowMenu, true);
+    window.addEventListener('resize', closeRowMenu, true);
+  }
+  function closeRowMenu(){ const m = document.getElementById('row-menu'); if(!m) return; m.style.display='none'; rowMenuCtx=null; document.removeEventListener('click', onDocClickRowMenu, true); document.removeEventListener('keydown', onKeyRowMenu, true); window.removeEventListener('scroll', closeRowMenu, true); window.removeEventListener('resize', closeRowMenu, true); }
+  function onDocClickRowMenu(e){ const m = document.getElementById('row-menu'); if(!m) return; if(!m.contains(e.target)) closeRowMenu(); }
+  function onKeyRowMenu(e){ if(e.key==='Escape') closeRowMenu(); }
+  function duplicateUnit(det, unit, tr){
+    const idx = det.units.findIndex(u=>u.id===unit.id);
+    const copy = { ...unit, id: uid() };
+    det.units.splice(Math.max(0, idx)+1, 0, copy);
+    const newRow = renderRow(det, copy);
+    tr.parentElement.insertBefore(newRow, tr.nextSibling);
+    updateDetachmentTotals(det, tr.closest('[data-detachment]')); updateOverview(); renderVisualiser(false); saveToLocal();
   }
 
   // --- Actions ---
@@ -799,5 +950,103 @@
     renderAll();
   })();
   </script>
+
+<script>
+(function(){
+  const $$ = (s, c=document)=> Array.from(c.querySelectorAll(s));
+
+  function cachePositions(tb){
+    tb._posMap = new Map();
+    $$('tr[data-row], tbody tr', tb).forEach((el,i)=>{
+      const key = el.dataset.unitId || el.dataset.id || el.id || i;
+      tb._posMap.set(key, el.getBoundingClientRect().top);
+    });
+  }
+  function animateReorder(tb){
+    const prev = tb._posMap || new Map();
+    $$('tr[data-row], tbody tr', tb).forEach((el,i)=>{
+      const key = el.dataset.unitId || el.dataset.id || el.id || i;
+      const oldTop = prev.get(key); if(oldTop===undefined) return;
+      const newTop = el.getBoundingClientRect().top;
+      const dy = oldTop - newTop;
+      if(dy){ el.style.transform = `translateY(${dy}px)`; el.getBoundingClientRect(); el.style.transform = ''; }
+    });
+    cachePositions(tb);
+  }
+
+  function ensureGap(tb){
+    if(!tb._gapRow){
+      const tr = document.createElement('tr');
+      tr.className = 'hh3-gap-row';
+      const td = document.createElement('td');
+      const cols = (tb.closest('table')?.tHead?.rows?.[0]?.cells?.length) || 8;
+      td.colSpan = cols; tr.appendChild(td);
+      tb._gapRow = tr;
+    }
+    return tb._gapRow;
+  }
+  function moveGap(tb, beforeEl, gapPx){
+    const gap = ensureGap(tb);
+    gap.style.setProperty('--gap-h', Math.max(8, Math.round(gapPx)) + 'px');
+    gap.classList.add('show');
+    if(beforeEl==null) { tb.appendChild(gap); }
+    else { tb.insertBefore(gap, beforeEl); }
+  }
+  function hideGap(tb){
+    if(tb && tb._gapRow){
+      tb._gapRow.classList.remove('show');
+      tb._gapRow.remove();
+      tb._gapRow = null;
+    }
+  }
+
+  // Find the first row below the cursor; we insert the gap BEFORE it
+  function getBefore(tb, y){
+    const els=[...tb.querySelectorAll('tr:not(.dragging):not(.hh3-gap-row)')];
+    let candidate = null;
+    for(const child of els){
+      const r = child.getBoundingClientRect();
+      if(y <= r.top){ candidate = child; break; }
+    }
+    return candidate;
+  }
+
+  function attach(tb){
+    if(!tb || tb._hh3_elastic_gap) return; tb._hh3_elastic_gap = true;
+    cachePositions(tb);
+
+    tb.addEventListener('dragover', (e)=>{
+      const dragging = tb.querySelector('tr.dragging, tr[data-row].dragging'); if(!dragging) return;
+      e.preventDefault();
+      // gentle autoscroll near viewport edges
+      const by=16, margin=60, vh=window.innerHeight;
+      if(e.clientY < margin) window.scrollBy(0,-by); else if(e.clientY > vh - margin) window.scrollBy(0,by);
+
+      const beforeEl = getBefore(tb, e.clientY);
+      const h = dragging.getBoundingClientRect().height || 32;
+
+      cachePositions(tb);
+      moveGap(tb, beforeEl, h);
+      animateReorder(tb);
+    });
+    tb.addEventListener('drop', ()=> hideGap(tb));
+    tb.addEventListener('dragend', ()=> hideGap(tb));
+  }
+
+  function init(){
+    document.querySelectorAll('table tbody').forEach(attach);
+    const mo = new MutationObserver(muts=>{
+      for(const m of muts){
+        m.addedNodes && m.addedNodes.forEach(n=>{
+          if(n.querySelector) n.querySelectorAll && n.querySelectorAll('table tbody').forEach(attach);
+        });
+      }
+    });
+    mo.observe(document.body, {subtree:true, childList:true});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
 </body>
 </html>
